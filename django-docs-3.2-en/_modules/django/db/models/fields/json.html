@@ -1,0 +1,652 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>django.db.models.fields.json &#8212; Django 3.2.15.dev documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../../_static/default.css" />
+    <script data-url_root="../../../../../" id="documentation_options" src="../../../../../_static/documentation_options.js"></script>
+    <script src="../../../../../_static/jquery.js"></script>
+    <script src="../../../../../_static/underscore.js"></script>
+    <script src="../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
+
+
+
+ 
+<script src="../../../../../templatebuiltins.js"></script>
+<script>
+(function($) {
+    if (!django_template_builtins) {
+       // templatebuiltins.js missing, do nothing.
+       return;
+    }
+    $(document).ready(function() {
+        // Hyperlink Django template tags and filters
+        var base = "../../../../../ref/templates/builtins.html";
+        if (base == "#") {
+            // Special case for builtins.html itself
+            base = "";
+        }
+        // Tags are keywords, class '.k'
+        $("div.highlight\\-html\\+django span.k").each(function(i, elem) {
+             var tagname = $(elem).text();
+             if ($.inArray(tagname, django_template_builtins.ttags) != -1) {
+                 var fragment = tagname.replace(/_/, '-');
+                 $(elem).html("<a href='" + base + "#" + fragment + "'>" + tagname + "</a>");
+             }
+        });
+        // Filters are functions, class '.nf'
+        $("div.highlight\\-html\\+django span.nf").each(function(i, elem) {
+             var filtername = $(elem).text();
+             if ($.inArray(filtername, django_template_builtins.tfilters) != -1) {
+                 var fragment = filtername.replace(/_/, '-');
+                 $(elem).html("<a href='" + base + "#" + fragment + "'>" + filtername + "</a>");
+             }
+        });
+    });
+})(jQuery);</script>
+
+  </head><body>
+
+    <div class="document">
+  <div id="custom-doc" class="yui-t6">
+    <div id="hd">
+      <h1><a href="../../../../../index.html">Django 3.2.15.dev documentation</a></h1>
+      <div id="global-nav">
+        <a title="Home page" href="../../../../../index.html">Home</a>  |
+        <a title="Table of contents" href="../../../../../contents.html">Table of contents</a>  |
+        <a title="Global index" href="../../../../../genindex.html">Index</a>  |
+        <a title="Module index" href="../../../../../py-modindex.html">Modules</a>
+      </div>
+      <div class="nav">
+    <a href="../../../../index.html" title="Module code" accesskey="U">up</a></div>
+    </div>
+
+    <div id="bd">
+      <div id="yui-main">
+        <div class="yui-b">
+          <div class="yui-g" id="_modules-django-db-models-fields-json">
+            
+  <h1>Source code for django.db.models.fields.json</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">json</span>
+
+<span class="kn">from</span> <span class="nn">django</span> <span class="kn">import</span> <span class="n">forms</span>
+<span class="kn">from</span> <span class="nn">django.core</span> <span class="kn">import</span> <span class="n">checks</span><span class="p">,</span> <span class="n">exceptions</span>
+<span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">NotSupportedError</span><span class="p">,</span> <span class="n">connections</span><span class="p">,</span> <span class="n">router</span>
+<span class="kn">from</span> <span class="nn">django.db.models</span> <span class="kn">import</span> <span class="n">lookups</span>
+<span class="kn">from</span> <span class="nn">django.db.models.lookups</span> <span class="kn">import</span> <span class="n">PostgresOperatorLookup</span><span class="p">,</span> <span class="n">Transform</span>
+<span class="kn">from</span> <span class="nn">django.utils.translation</span> <span class="kn">import</span> <span class="n">gettext_lazy</span> <span class="k">as</span> <span class="n">_</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Field</span>
+<span class="kn">from</span> <span class="nn">.mixins</span> <span class="kn">import</span> <span class="n">CheckFieldDefaultMixin</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;JSONField&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="JSONField"><a class="viewcode-back" href="../../../../../ref/models/fields.html#django.db.models.JSONField">[docs]</a><span class="k">class</span> <span class="nc">JSONField</span><span class="p">(</span><span class="n">CheckFieldDefaultMixin</span><span class="p">,</span> <span class="n">Field</span><span class="p">):</span>
+    <span class="n">empty_strings_allowed</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">_</span><span class="p">(</span><span class="s1">&#39;A JSON object&#39;</span><span class="p">)</span>
+    <span class="n">default_error_messages</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;invalid&#39;</span><span class="p">:</span> <span class="n">_</span><span class="p">(</span><span class="s1">&#39;Value must be valid JSON.&#39;</span><span class="p">),</span>
+    <span class="p">}</span>
+    <span class="n">_default_hint</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;dict&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">verbose_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">encoder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">decoder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="n">encoder</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">callable</span><span class="p">(</span><span class="n">encoder</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The encoder parameter must be a callable object.&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">decoder</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">callable</span><span class="p">(</span><span class="n">decoder</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The decoder parameter must be a callable object.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="n">encoder</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span> <span class="o">=</span> <span class="n">decoder</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">verbose_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">errors</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">databases</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;databases&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_check_supported</span><span class="p">(</span><span class="n">databases</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">errors</span>
+
+    <span class="k">def</span> <span class="nf">_check_supported</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">databases</span><span class="p">):</span>
+        <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">databases</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">router</span><span class="o">.</span><span class="n">allow_migrate_model</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">connection</span> <span class="o">=</span> <span class="n">connections</span><span class="p">[</span><span class="n">db</span><span class="p">]</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">required_db_vendor</span> <span class="ow">and</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">required_db_vendor</span> <span class="o">!=</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span>
+            <span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span>
+                <span class="s1">&#39;supports_json_field&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">required_db_features</span> <span class="ow">or</span>
+                <span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">supports_json_field</span>
+            <span class="p">):</span>
+                <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">checks</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span>
+                        <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> does not support JSONFields.&#39;</span>
+                        <span class="o">%</span> <span class="n">connection</span><span class="o">.</span><span class="n">display_name</span><span class="p">,</span>
+                        <span class="n">obj</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
+                        <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;fields.E180&#39;</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">errors</span>
+
+    <span class="k">def</span> <span class="nf">deconstruct</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">name</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">deconstruct</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;encoder&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;decoder&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span>
+        <span class="k">return</span> <span class="n">name</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">from_db_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">expression</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span>
+        <span class="c1"># Some backends (SQLite at least) extract non-string values in their</span>
+        <span class="c1"># SQL datatypes.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">expression</span><span class="p">,</span> <span class="n">KeyTransform</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">value</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">get_internal_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;JSONField&#39;</span>
+
+    <span class="k">def</span> <span class="nf">get_prep_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="n">transform</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">get_transform</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">transform</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">transform</span>
+        <span class="k">return</span> <span class="n">KeyTransformFactory</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">model_instance</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">model_instance</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ValidationError</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">error_messages</span><span class="p">[</span><span class="s1">&#39;invalid&#39;</span><span class="p">],</span>
+                <span class="n">code</span><span class="o">=</span><span class="s1">&#39;invalid&#39;</span><span class="p">,</span>
+                <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="n">value</span><span class="p">},</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">value_to_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value_from_object</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">formfield</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">formfield</span><span class="p">(</span><span class="o">**</span><span class="p">{</span>
+            <span class="s1">&#39;form_class&#39;</span><span class="p">:</span> <span class="n">forms</span><span class="o">.</span><span class="n">JSONField</span><span class="p">,</span>
+            <span class="s1">&#39;encoder&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">,</span>
+            <span class="s1">&#39;decoder&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">})</span></div>
+
+
+<span class="k">def</span> <span class="nf">compile_json_path</span><span class="p">(</span><span class="n">key_transforms</span><span class="p">,</span> <span class="n">include_root</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;$&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">include_root</span> <span class="k">else</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">key_transform</span> <span class="ow">in</span> <span class="n">key_transforms</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">num</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">key_transform</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>  <span class="c1"># non-integer</span>
+            <span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+            <span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">key_transform</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="n">num</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">DataContains</span><span class="p">(</span><span class="n">PostgresOperatorLookup</span><span class="p">):</span>
+    <span class="n">lookup_name</span> <span class="o">=</span> <span class="s1">&#39;contains&#39;</span>
+    <span class="n">postgres_operator</span> <span class="o">=</span> <span class="s1">&#39;@&gt;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">as_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">supports_json_field_contains</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NotSupportedError</span><span class="p">(</span>
+                <span class="s1">&#39;contains lookup is not supported on this database backend.&#39;</span>
+            <span class="p">)</span>
+        <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_rhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">lhs_params</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">rhs_params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;JSON_CONTAINS(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="n">rhs</span><span class="p">),</span> <span class="n">params</span>
+
+
+<span class="k">class</span> <span class="nc">ContainedBy</span><span class="p">(</span><span class="n">PostgresOperatorLookup</span><span class="p">):</span>
+    <span class="n">lookup_name</span> <span class="o">=</span> <span class="s1">&#39;contained_by&#39;</span>
+    <span class="n">postgres_operator</span> <span class="o">=</span> <span class="s1">&#39;&lt;@&#39;</span>
+
+    <span class="k">def</span> <span class="nf">as_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">supports_json_field_contains</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NotSupportedError</span><span class="p">(</span>
+                <span class="s1">&#39;contained_by lookup is not supported on this database backend.&#39;</span>
+            <span class="p">)</span>
+        <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_rhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">rhs_params</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">lhs_params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;JSON_CONTAINS(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="n">lhs</span><span class="p">),</span> <span class="n">params</span>
+
+
+<span class="k">class</span> <span class="nc">HasKeyLookup</span><span class="p">(</span><span class="n">PostgresOperatorLookup</span><span class="p">):</span>
+    <span class="n">logical_operator</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">as_sql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Process JSON path from the left-hand side.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="p">,</span> <span class="n">KeyTransform</span><span class="p">):</span>
+            <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span><span class="p">,</span> <span class="n">lhs_key_transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">preprocess_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+            <span class="n">lhs_json_path</span> <span class="o">=</span> <span class="n">compile_json_path</span><span class="p">(</span><span class="n">lhs_key_transforms</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+            <span class="n">lhs_json_path</span> <span class="o">=</span> <span class="s1">&#39;$&#39;</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="n">template</span> <span class="o">%</span> <span class="n">lhs</span>
+        <span class="c1"># Process JSON path from the right-hand side.</span>
+        <span class="n">rhs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rhs</span>
+        <span class="n">rhs_params</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rhs</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="n">rhs</span> <span class="o">=</span> <span class="p">[</span><span class="n">rhs</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">rhs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">KeyTransform</span><span class="p">):</span>
+                <span class="o">*</span><span class="n">_</span><span class="p">,</span> <span class="n">rhs_key_transforms</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">preprocess_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">rhs_key_transforms</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="n">rhs_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">lhs_json_path</span><span class="p">,</span>
+                <span class="n">compile_json_path</span><span class="p">(</span><span class="n">rhs_key_transforms</span><span class="p">,</span> <span class="n">include_root</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+            <span class="p">))</span>
+        <span class="c1"># Add condition for each key.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">logical_operator</span><span class="p">:</span>
+            <span class="n">sql</span> <span class="o">=</span> <span class="s1">&#39;(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">logical_operator</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">sql</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs_params</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">sql</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">lhs_params</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">rhs_params</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">as_mysql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_sql</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="s2">&quot;JSON_CONTAINS_PATH(</span><span class="si">%s</span><span class="s2">, &#39;one&#39;, </span><span class="si">%%</span><span class="s2">s)&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">as_oracle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">sql</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_sql</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="s2">&quot;JSON_EXISTS(</span><span class="si">%s</span><span class="s2">, &#39;</span><span class="si">%%</span><span class="s2">s&#39;)&quot;</span><span class="p">)</span>
+        <span class="c1"># Add paths directly into SQL because path expressions cannot be passed</span>
+        <span class="c1"># as bind variables on Oracle.</span>
+        <span class="k">return</span> <span class="n">sql</span> <span class="o">%</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">params</span><span class="p">),</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">as_postgresql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rhs</span><span class="p">,</span> <span class="n">KeyTransform</span><span class="p">):</span>
+            <span class="o">*</span><span class="n">_</span><span class="p">,</span> <span class="n">rhs_key_transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rhs</span><span class="o">.</span><span class="n">preprocess_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">rhs_key_transforms</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span> <span class="o">=</span> <span class="n">KeyTransform</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rhs</span> <span class="o">=</span> <span class="n">rhs_key_transforms</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">as_postgresql</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">as_sqlite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_sql</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="s1">&#39;JSON_TYPE(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%%</span><span class="s1">s) IS NOT NULL&#39;</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">HasKey</span><span class="p">(</span><span class="n">HasKeyLookup</span><span class="p">):</span>
+    <span class="n">lookup_name</span> <span class="o">=</span> <span class="s1">&#39;has_key&#39;</span>
+    <span class="n">postgres_operator</span> <span class="o">=</span> <span class="s1">&#39;?&#39;</span>
+    <span class="n">prepare_rhs</span> <span class="o">=</span> <span class="kc">False</span>
+
+
+<span class="k">class</span> <span class="nc">HasKeys</span><span class="p">(</span><span class="n">HasKeyLookup</span><span class="p">):</span>
+    <span class="n">lookup_name</span> <span class="o">=</span> <span class="s1">&#39;has_keys&#39;</span>
+    <span class="n">postgres_operator</span> <span class="o">=</span> <span class="s1">&#39;?&amp;&#39;</span>
+    <span class="n">logical_operator</span> <span class="o">=</span> <span class="s1">&#39; AND &#39;</span>
+
+    <span class="k">def</span> <span class="nf">get_prep_lookup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rhs</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">HasAnyKeys</span><span class="p">(</span><span class="n">HasKeys</span><span class="p">):</span>
+    <span class="n">lookup_name</span> <span class="o">=</span> <span class="s1">&#39;has_any_keys&#39;</span>
+    <span class="n">postgres_operator</span> <span class="o">=</span> <span class="s1">&#39;?|&#39;</span>
+    <span class="n">logical_operator</span> <span class="o">=</span> <span class="s1">&#39; OR &#39;</span>
+
+
+<span class="k">class</span> <span class="nc">JSONExact</span><span class="p">(</span><span class="n">lookups</span><span class="o">.</span><span class="n">Exact</span><span class="p">):</span>
+    <span class="n">can_use_none_as_rhs</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">process_lhs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span> <span class="o">==</span> <span class="s1">&#39;sqlite&#39;</span><span class="p">:</span>
+            <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_rhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">rhs</span> <span class="o">==</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="ow">and</span> <span class="n">rhs_params</span> <span class="o">==</span> <span class="p">[</span><span class="kc">None</span><span class="p">]:</span>
+                <span class="c1"># Use JSON_TYPE instead of JSON_EXTRACT for NULLs.</span>
+                <span class="n">lhs</span> <span class="o">=</span> <span class="s2">&quot;JSON_TYPE(</span><span class="si">%s</span><span class="s2">, &#39;$&#39;)&quot;</span> <span class="o">%</span> <span class="n">lhs</span>
+        <span class="k">return</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span>
+
+    <span class="k">def</span> <span class="nf">process_rhs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_rhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="c1"># Treat None lookup values as null.</span>
+        <span class="k">if</span> <span class="n">rhs</span> <span class="o">==</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="ow">and</span> <span class="n">rhs_params</span> <span class="o">==</span> <span class="p">[</span><span class="kc">None</span><span class="p">]:</span>
+            <span class="n">rhs_params</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;null&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span> <span class="o">==</span> <span class="s1">&#39;mysql&#39;</span><span class="p">:</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;JSON_EXTRACT(</span><span class="si">%s</span><span class="s2">, &#39;$&#39;)&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">rhs_params</span><span class="p">)</span>
+            <span class="n">rhs</span> <span class="o">=</span> <span class="n">rhs</span> <span class="o">%</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span>
+
+
+<span class="n">JSONField</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">DataContains</span><span class="p">)</span>
+<span class="n">JSONField</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">ContainedBy</span><span class="p">)</span>
+<span class="n">JSONField</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">HasKey</span><span class="p">)</span>
+<span class="n">JSONField</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">HasKeys</span><span class="p">)</span>
+<span class="n">JSONField</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">HasAnyKeys</span><span class="p">)</span>
+<span class="n">JSONField</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">JSONExact</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransform</span><span class="p">(</span><span class="n">Transform</span><span class="p">):</span>
+    <span class="n">postgres_operator</span> <span class="o">=</span> <span class="s1">&#39;-&gt;&#39;</span>
+    <span class="n">postgres_nested_operator</span> <span class="o">=</span> <span class="s1">&#39;#&gt;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">key_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">key_name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">preprocess_lhs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">key_transforms</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">key_name</span><span class="p">]</span>
+        <span class="n">previous</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span>
+        <span class="k">while</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">previous</span><span class="p">,</span> <span class="n">KeyTransform</span><span class="p">):</span>
+            <span class="n">key_transforms</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">previous</span><span class="o">.</span><span class="n">key_name</span><span class="p">)</span>
+            <span class="n">previous</span> <span class="o">=</span> <span class="n">previous</span><span class="o">.</span><span class="n">lhs</span>
+        <span class="n">lhs</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">compiler</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">previous</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span> <span class="o">==</span> <span class="s1">&#39;oracle&#39;</span><span class="p">:</span>
+            <span class="c1"># Escape string-formatting.</span>
+            <span class="n">key_transforms</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;%&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%%</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">key_transforms</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">key_transforms</span>
+
+    <span class="k">def</span> <span class="nf">as_mysql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">lhs</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">key_transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="n">json_path</span> <span class="o">=</span> <span class="n">compile_json_path</span><span class="p">(</span><span class="n">key_transforms</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;JSON_EXTRACT(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%%</span><span class="s1">s)&#39;</span> <span class="o">%</span> <span class="n">lhs</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">json_path</span><span class="p">,)</span>
+
+    <span class="k">def</span> <span class="nf">as_oracle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">lhs</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">key_transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="n">json_path</span> <span class="o">=</span> <span class="n">compile_json_path</span><span class="p">(</span><span class="n">key_transforms</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="s2">&quot;COALESCE(JSON_QUERY(</span><span class="si">%s</span><span class="s2">, &#39;</span><span class="si">%s</span><span class="s2">&#39;), JSON_VALUE(</span><span class="si">%s</span><span class="s2">, &#39;</span><span class="si">%s</span><span class="s2">&#39;))&quot;</span> <span class="o">%</span>
+            <span class="p">((</span><span class="n">lhs</span><span class="p">,</span> <span class="n">json_path</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span>
+
+    <span class="k">def</span> <span class="nf">as_postgresql</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">lhs</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">key_transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">key_transforms</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">sql</span> <span class="o">=</span> <span class="s1">&#39;(</span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1"> </span><span class="si">%%</span><span class="s1">s)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">postgres_nested_operator</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">sql</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">key_transforms</span><span class="p">,)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">lookup</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key_name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">lookup</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_name</span>
+        <span class="k">return</span> <span class="s1">&#39;(</span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1"> </span><span class="si">%%</span><span class="s1">s)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">lhs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">postgres_operator</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">lookup</span><span class="p">,)</span>
+
+    <span class="k">def</span> <span class="nf">as_sqlite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">lhs</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">key_transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="n">json_path</span> <span class="o">=</span> <span class="n">compile_json_path</span><span class="p">(</span><span class="n">key_transforms</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;JSON_EXTRACT(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%%</span><span class="s1">s)&#39;</span> <span class="o">%</span> <span class="n">lhs</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">json_path</span><span class="p">,)</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTextTransform</span><span class="p">(</span><span class="n">KeyTransform</span><span class="p">):</span>
+    <span class="n">postgres_operator</span> <span class="o">=</span> <span class="s1">&#39;-&gt;&gt;&#39;</span>
+    <span class="n">postgres_nested_operator</span> <span class="o">=</span> <span class="s1">&#39;#&gt;&gt;&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformTextLookupMixin</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mixin for combining with a lookup expecting a text lhs from a JSONField</span>
+<span class="sd">    key lookup. On PostgreSQL, make use of the -&gt;&gt; operator instead of casting</span>
+<span class="sd">    key values to text and performing the lookup on the resulting</span>
+<span class="sd">    representation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key_transform</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key_transform</span><span class="p">,</span> <span class="n">KeyTransform</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s1">&#39;Transform should be an instance of KeyTransform in order to &#39;</span>
+                <span class="s1">&#39;use this lookup.&#39;</span>
+            <span class="p">)</span>
+        <span class="n">key_text_transform</span> <span class="o">=</span> <span class="n">KeyTextTransform</span><span class="p">(</span>
+            <span class="n">key_transform</span><span class="o">.</span><span class="n">key_name</span><span class="p">,</span> <span class="o">*</span><span class="n">key_transform</span><span class="o">.</span><span class="n">source_expressions</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">key_transform</span><span class="o">.</span><span class="n">extra</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">key_text_transform</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">CaseInsensitiveMixin</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mixin to allow case-insensitive comparison of JSON values on MySQL.</span>
+<span class="sd">    MySQL handles strings used in JSON context using the utf8mb4_bin collation.</span>
+<span class="sd">    Because utf8mb4_bin is a binary collation, comparison of JSON values is</span>
+<span class="sd">    case-sensitive.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">process_lhs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span> <span class="o">==</span> <span class="s1">&#39;mysql&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;LOWER(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span>
+        <span class="k">return</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span>
+
+    <span class="k">def</span> <span class="nf">process_rhs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_rhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span> <span class="o">==</span> <span class="s1">&#39;mysql&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;LOWER(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span>
+        <span class="k">return</span> <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformIsNull</span><span class="p">(</span><span class="n">lookups</span><span class="o">.</span><span class="n">IsNull</span><span class="p">):</span>
+    <span class="c1"># key__isnull=False is the same as has_key=&#39;key&#39;</span>
+    <span class="k">def</span> <span class="nf">as_oracle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">sql</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">HasKey</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">lhs</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">key_name</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">as_oracle</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">rhs</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">sql</span><span class="p">,</span> <span class="n">params</span>
+        <span class="c1"># Column doesn&#39;t have a key or IS NULL.</span>
+        <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">preprocess_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;(NOT </span><span class="si">%s</span><span class="s1"> OR </span><span class="si">%s</span><span class="s1"> IS NULL)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">lhs</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">lhs_params</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">as_sqlite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">template</span> <span class="o">=</span> <span class="s1">&#39;JSON_TYPE(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%%</span><span class="s1">s) IS NULL&#39;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">rhs</span><span class="p">:</span>
+            <span class="n">template</span> <span class="o">=</span> <span class="s1">&#39;JSON_TYPE(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%%</span><span class="s1">s) IS NOT NULL&#39;</span>
+        <span class="k">return</span> <span class="n">HasKey</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">lhs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">key_name</span><span class="p">)</span><span class="o">.</span><span class="n">as_sql</span><span class="p">(</span>
+            <span class="n">compiler</span><span class="p">,</span>
+            <span class="n">connection</span><span class="p">,</span>
+            <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="p">,</span>
+        <span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformIn</span><span class="p">(</span><span class="n">lookups</span><span class="o">.</span><span class="n">In</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">resolve_expression_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+        <span class="n">sql</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">resolve_expression_parameter</span><span class="p">(</span>
+            <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">param</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="s1">&#39;as_sql&#39;</span><span class="p">)</span> <span class="ow">and</span>
+            <span class="ow">not</span> <span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">has_native_json_field</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span> <span class="o">==</span> <span class="s1">&#39;oracle&#39;</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+                <span class="n">sql</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">(JSON_OBJECT(&#39;value&#39; VALUE </span><span class="si">%%</span><span class="s2">s FORMAT JSON), &#39;$.value&#39;)&quot;</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)):</span>
+                    <span class="n">sql</span> <span class="o">=</span> <span class="n">sql</span> <span class="o">%</span> <span class="s1">&#39;JSON_QUERY&#39;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">sql</span> <span class="o">=</span> <span class="n">sql</span> <span class="o">%</span> <span class="s1">&#39;JSON_VALUE&#39;</span>
+            <span class="k">elif</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">&#39;sqlite&#39;</span><span class="p">,</span> <span class="s1">&#39;mysql&#39;</span><span class="p">}:</span>
+                <span class="n">sql</span> <span class="o">=</span> <span class="s2">&quot;JSON_EXTRACT(</span><span class="si">%s</span><span class="s2">, &#39;$&#39;)&quot;</span>
+        <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span> <span class="o">==</span> <span class="s1">&#39;mysql&#39;</span> <span class="ow">and</span> <span class="n">connection</span><span class="o">.</span><span class="n">mysql_is_mariadb</span><span class="p">:</span>
+            <span class="n">sql</span> <span class="o">=</span> <span class="s1">&#39;JSON_UNQUOTE(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="n">sql</span>
+        <span class="k">return</span> <span class="n">sql</span><span class="p">,</span> <span class="n">params</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformExact</span><span class="p">(</span><span class="n">JSONExact</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">process_lhs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span> <span class="o">==</span> <span class="s1">&#39;sqlite&#39;</span><span class="p">:</span>
+            <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_rhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">rhs</span> <span class="o">==</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="ow">and</span> <span class="n">rhs_params</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;null&#39;</span><span class="p">]:</span>
+                <span class="n">lhs</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">preprocess_lhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+                <span class="n">lhs</span> <span class="o">=</span> <span class="s1">&#39;JSON_TYPE(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%%</span><span class="s1">s)&#39;</span> <span class="o">%</span> <span class="n">lhs</span>
+        <span class="k">return</span> <span class="n">lhs</span><span class="p">,</span> <span class="n">lhs_params</span>
+
+    <span class="k">def</span> <span class="nf">process_rhs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rhs</span><span class="p">,</span> <span class="n">KeyTransform</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">lookups</span><span class="o">.</span><span class="n">Exact</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">process_rhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_rhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span> <span class="o">==</span> <span class="s1">&#39;oracle&#39;</span><span class="p">:</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">sql</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">(JSON_OBJECT(&#39;value&#39; VALUE </span><span class="si">%%</span><span class="s2">s FORMAT JSON), &#39;$.value&#39;)&quot;</span>
+            <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">rhs_params</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)):</span>
+                    <span class="n">func</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sql</span> <span class="o">%</span> <span class="s1">&#39;JSON_QUERY&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">func</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sql</span> <span class="o">%</span> <span class="s1">&#39;JSON_VALUE&#39;</span><span class="p">)</span>
+            <span class="n">rhs</span> <span class="o">=</span> <span class="n">rhs</span> <span class="o">%</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">connection</span><span class="o">.</span><span class="n">vendor</span> <span class="o">==</span> <span class="s1">&#39;sqlite&#39;</span><span class="p">:</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;JSON_EXTRACT(</span><span class="si">%s</span><span class="s2">, &#39;$&#39;)&quot;</span> <span class="k">if</span> <span class="n">value</span> <span class="o">!=</span> <span class="s1">&#39;null&#39;</span> <span class="k">else</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">rhs_params</span><span class="p">]</span>
+            <span class="n">rhs</span> <span class="o">=</span> <span class="n">rhs</span> <span class="o">%</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span>
+
+    <span class="k">def</span> <span class="nf">as_oracle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_rhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rhs_params</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;null&#39;</span><span class="p">]:</span>
+            <span class="c1"># Field has key and it&#39;s NULL.</span>
+            <span class="n">has_key_expr</span> <span class="o">=</span> <span class="n">HasKey</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">lhs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">key_name</span><span class="p">)</span>
+            <span class="n">has_key_sql</span><span class="p">,</span> <span class="n">has_key_params</span> <span class="o">=</span> <span class="n">has_key_expr</span><span class="o">.</span><span class="n">as_oracle</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+            <span class="n">is_null_expr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="o">.</span><span class="n">get_lookup</span><span class="p">(</span><span class="s1">&#39;isnull&#39;</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">lhs</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">is_null_sql</span><span class="p">,</span> <span class="n">is_null_params</span> <span class="o">=</span> <span class="n">is_null_expr</span><span class="o">.</span><span class="n">as_sql</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> AND </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">has_key_sql</span><span class="p">,</span> <span class="n">is_null_sql</span><span class="p">),</span>
+                <span class="nb">tuple</span><span class="p">(</span><span class="n">has_key_params</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">is_null_params</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">as_sql</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformIExact</span><span class="p">(</span><span class="n">CaseInsensitiveMixin</span><span class="p">,</span> <span class="n">KeyTransformTextLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">IExact</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformIContains</span><span class="p">(</span><span class="n">CaseInsensitiveMixin</span><span class="p">,</span> <span class="n">KeyTransformTextLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">IContains</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformStartsWith</span><span class="p">(</span><span class="n">KeyTransformTextLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">StartsWith</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformIStartsWith</span><span class="p">(</span><span class="n">CaseInsensitiveMixin</span><span class="p">,</span> <span class="n">KeyTransformTextLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">IStartsWith</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformEndsWith</span><span class="p">(</span><span class="n">KeyTransformTextLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">EndsWith</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformIEndsWith</span><span class="p">(</span><span class="n">CaseInsensitiveMixin</span><span class="p">,</span> <span class="n">KeyTransformTextLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">IEndsWith</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformRegex</span><span class="p">(</span><span class="n">KeyTransformTextLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">Regex</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformIRegex</span><span class="p">(</span><span class="n">CaseInsensitiveMixin</span><span class="p">,</span> <span class="n">KeyTransformTextLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">IRegex</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformNumericLookupMixin</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">process_rhs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">):</span>
+        <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_rhs</span><span class="p">(</span><span class="n">compiler</span><span class="p">,</span> <span class="n">connection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">connection</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">has_native_json_field</span><span class="p">:</span>
+            <span class="n">rhs_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">rhs_params</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">rhs</span><span class="p">,</span> <span class="n">rhs_params</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformLt</span><span class="p">(</span><span class="n">KeyTransformNumericLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">LessThan</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformLte</span><span class="p">(</span><span class="n">KeyTransformNumericLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">LessThanOrEqual</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformGt</span><span class="p">(</span><span class="n">KeyTransformNumericLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">GreaterThan</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformGte</span><span class="p">(</span><span class="n">KeyTransformNumericLookupMixin</span><span class="p">,</span> <span class="n">lookups</span><span class="o">.</span><span class="n">GreaterThanOrEqual</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformIn</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformExact</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformIExact</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformIsNull</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformIContains</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformStartsWith</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformIStartsWith</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformEndsWith</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformIEndsWith</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformRegex</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformIRegex</span><span class="p">)</span>
+
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformLt</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformLte</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformGt</span><span class="p">)</span>
+<span class="n">KeyTransform</span><span class="o">.</span><span class="n">register_lookup</span><span class="p">(</span><span class="n">KeyTransformGte</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">KeyTransformFactory</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key_name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">key_name</span> <span class="o">=</span> <span class="n">key_name</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">KeyTransform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      
+        
+          <div class="yui-b" id="sidebar">
+            
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+              <h3>Last update:</h3>
+              <p class="topless">Jul 04, 2022</p>
+          </div>
+        
+      
+    </div>
+
+    <div id="ft">
+      <div class="nav">
+    <a href="../../../../index.html" title="Module code" accesskey="U">up</a></div>
+    </div>
+  </div>
+
+      <div class="clearer"></div>
+    </div>
+  </body>
+</html>

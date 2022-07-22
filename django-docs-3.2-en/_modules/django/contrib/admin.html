@@ -1,0 +1,139 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>django.contrib.admin &#8212; Django 3.2.15.dev documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/default.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+
+
+
+ 
+<script src="../../../templatebuiltins.js"></script>
+<script>
+(function($) {
+    if (!django_template_builtins) {
+       // templatebuiltins.js missing, do nothing.
+       return;
+    }
+    $(document).ready(function() {
+        // Hyperlink Django template tags and filters
+        var base = "../../../ref/templates/builtins.html";
+        if (base == "#") {
+            // Special case for builtins.html itself
+            base = "";
+        }
+        // Tags are keywords, class '.k'
+        $("div.highlight\\-html\\+django span.k").each(function(i, elem) {
+             var tagname = $(elem).text();
+             if ($.inArray(tagname, django_template_builtins.ttags) != -1) {
+                 var fragment = tagname.replace(/_/, '-');
+                 $(elem).html("<a href='" + base + "#" + fragment + "'>" + tagname + "</a>");
+             }
+        });
+        // Filters are functions, class '.nf'
+        $("div.highlight\\-html\\+django span.nf").each(function(i, elem) {
+             var filtername = $(elem).text();
+             if ($.inArray(filtername, django_template_builtins.tfilters) != -1) {
+                 var fragment = filtername.replace(/_/, '-');
+                 $(elem).html("<a href='" + base + "#" + fragment + "'>" + filtername + "</a>");
+             }
+        });
+    });
+})(jQuery);</script>
+
+  </head><body>
+
+    <div class="document">
+  <div id="custom-doc" class="yui-t6">
+    <div id="hd">
+      <h1><a href="../../../index.html">Django 3.2.15.dev documentation</a></h1>
+      <div id="global-nav">
+        <a title="Home page" href="../../../index.html">Home</a>  |
+        <a title="Table of contents" href="../../../contents.html">Table of contents</a>  |
+        <a title="Global index" href="../../../genindex.html">Index</a>  |
+        <a title="Module index" href="../../../py-modindex.html">Modules</a>
+      </div>
+      <div class="nav">
+    <a href="../../index.html" title="Module code" accesskey="U">up</a></div>
+    </div>
+
+    <div id="bd">
+      <div id="yui-main">
+        <div class="yui-b">
+          <div class="yui-g" id="_modules-django-contrib-admin">
+            
+  <h1>Source code for django.contrib.admin</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">django.contrib.admin.decorators</span> <span class="kn">import</span> <span class="n">action</span><span class="p">,</span> <span class="n">display</span><span class="p">,</span> <span class="n">register</span>
+<span class="kn">from</span> <span class="nn">django.contrib.admin.filters</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">AllValuesFieldListFilter</span><span class="p">,</span> <span class="n">BooleanFieldListFilter</span><span class="p">,</span> <span class="n">ChoicesFieldListFilter</span><span class="p">,</span>
+    <span class="n">DateFieldListFilter</span><span class="p">,</span> <span class="n">EmptyFieldListFilter</span><span class="p">,</span> <span class="n">FieldListFilter</span><span class="p">,</span> <span class="n">ListFilter</span><span class="p">,</span>
+    <span class="n">RelatedFieldListFilter</span><span class="p">,</span> <span class="n">RelatedOnlyFieldListFilter</span><span class="p">,</span> <span class="n">SimpleListFilter</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">django.contrib.admin.options</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">HORIZONTAL</span><span class="p">,</span> <span class="n">VERTICAL</span><span class="p">,</span> <span class="n">ModelAdmin</span><span class="p">,</span> <span class="n">StackedInline</span><span class="p">,</span> <span class="n">TabularInline</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">django.contrib.admin.sites</span> <span class="kn">import</span> <span class="n">AdminSite</span><span class="p">,</span> <span class="n">site</span>
+<span class="kn">from</span> <span class="nn">django.utils.module_loading</span> <span class="kn">import</span> <span class="n">autodiscover_modules</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;action&quot;</span><span class="p">,</span> <span class="s2">&quot;display&quot;</span><span class="p">,</span> <span class="s2">&quot;register&quot;</span><span class="p">,</span> <span class="s2">&quot;ModelAdmin&quot;</span><span class="p">,</span> <span class="s2">&quot;HORIZONTAL&quot;</span><span class="p">,</span> <span class="s2">&quot;VERTICAL&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;StackedInline&quot;</span><span class="p">,</span> <span class="s2">&quot;TabularInline&quot;</span><span class="p">,</span> <span class="s2">&quot;AdminSite&quot;</span><span class="p">,</span> <span class="s2">&quot;site&quot;</span><span class="p">,</span> <span class="s2">&quot;ListFilter&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SimpleListFilter&quot;</span><span class="p">,</span> <span class="s2">&quot;FieldListFilter&quot;</span><span class="p">,</span> <span class="s2">&quot;BooleanFieldListFilter&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;RelatedFieldListFilter&quot;</span><span class="p">,</span> <span class="s2">&quot;ChoicesFieldListFilter&quot;</span><span class="p">,</span> <span class="s2">&quot;DateFieldListFilter&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;AllValuesFieldListFilter&quot;</span><span class="p">,</span> <span class="s2">&quot;EmptyFieldListFilter&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;RelatedOnlyFieldListFilter&quot;</span><span class="p">,</span> <span class="s2">&quot;autodiscover&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="autodiscover"><a class="viewcode-back" href="../../../ref/contrib/admin/index.html#django.contrib.admin.autodiscover">[docs]</a><span class="k">def</span> <span class="nf">autodiscover</span><span class="p">():</span>
+    <span class="n">autodiscover_modules</span><span class="p">(</span><span class="s1">&#39;admin&#39;</span><span class="p">,</span> <span class="n">register_to</span><span class="o">=</span><span class="n">site</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      
+        
+          <div class="yui-b" id="sidebar">
+            
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+              <h3>Last update:</h3>
+              <p class="topless">Jul 04, 2022</p>
+          </div>
+        
+      
+    </div>
+
+    <div id="ft">
+      <div class="nav">
+    <a href="../../index.html" title="Module code" accesskey="U">up</a></div>
+    </div>
+  </div>
+
+      <div class="clearer"></div>
+    </div>
+  </body>
+</html>
