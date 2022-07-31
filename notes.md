@@ -1,7 +1,7 @@
 # Concepts
-- TemplateView
-- ListView
+- TemplateView, ListView, DetailView
 - TestCase, SimpleTestCase
+- models fields: CharField, TextField, ForeignKey
 
 
 # Notes
@@ -14,3 +14,22 @@
 	- register your app, in admin.py
 - It’s important that all our test methods start with the phrase `test_` so that Django knows to test them! 
 - [reverse()](https://docs.djangoproject.com/en/4.0/ref/urlresolvers/#reverse) function. This basically returns the path, e.g. '/aboutpage', for the url name, that we set in the urls.py files. [Better Explanation](https://stackoverflow.com/questions/11241668/what-is-reverse). It takes an input of a url name and gives the actual url, which is reverse to having a url first and then give it a name.
+- The *blog* app, shows how to use crud, and using static files
+- ON DELETE CASCADE constraint is used to delete the rows from the child table automatically, when the rows from the parent table are deleted.
+- You cannot edit the admin.py file before creating the superuser. If you edit the admin.py file and then try to create the superuser, you will get error
+- some fields in django model cannot be left blank, if however you want to do that then use [this](https://docs.djangoproject.com/en/3.2/ref/models/fields/#field-options)
+
+### Setting up project level static file for your project. [Docs](https://docs.djangoproject.com/en/3.2/ref/settings/#static-files)
+- CSS, JavaScript, and images are a core piece of any modern web application and within the Django world are referred to as “static files.”
+- By default, Django will look within each app for a folder called `static`. In other words, a folder called `app_name/static/`. If you recall, this is similar to how templates are treated as well.
+- As Django projects grow in complexity over time and have multiple apps, it is often simpler to reason about static files if they are stored in a single, project-level directory instead. 
+- Steps
+	1. create a new directory called *static* in the same folder as the *manage.py* file.
+	2. Then we need to tell Django to look for this new folder when loading static files. Look at the bottom of the settings.py file, there is already a single line of configuration `STATIC_URL = '/static/'`
+	3. By configuring `STATICFILES_DIRS` , we can tell Django where to look for static files beyond just `app/static` folder.
+- `STATIC_ROOT`: is useless during development, it's only required for deployment. When your project goes live, things differ. Most likely you will serve dynamic content using Django and static files will be served by Nginx. Why? Because Nginx is incredibly efficient and will reduce the workload off Django.This is where STATIC_ROOT becomes handy, as Nginx doesn't know anything about your Django project and doesn't know where to find static files. So you set STATIC_ROOT = '/some/folder/' and tell Nginx to look for static files in /some/folder/. Then you run manage.py collectstatic and Django will copy static files from all the apps you have to /some/folder/.
+- While in development, STATIC_ROOT does nothing. You don't even need to set it. Django looks for static files inside each app's directory (myProject/appName/static) and serves them automatically. This is the magic done by manage.py runserver when DEBUG=True.
+- `STATICFILES_DIRS`: is used to include additional directories for collectstatic to look for. For example, by default, Django doesn't recognize /myProject/static/. So you can include it yourself.
+- MEDIA_ROOT where media files ,all uploaded files goes. Example : Images, Files
+- https://stackoverflow.com/questions/24022558/differences-between-staticfiles-dir-static-root-and-media-root
+- Need more clarity on: STATIC_URL, STATIC_ROOT, MEDIA_ROOT, STATICFILES_DIRS, collectstatic, 
