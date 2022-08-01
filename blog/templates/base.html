@@ -11,13 +11,17 @@
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400">
 </head>
 <body>
-	<header>
-		<h1><a href="{% url 'home' %}">Django blog</a></h1>
-	</header>
 	<div>
+		<header>
+			<div class="nav-left">
+				<h1><a href="{% url 'home' %}">Django blog</a></h1>
+			</div><br>
+			<div class="">
+				<h1><a href="{% url 'post_new' %}">+ New Blog Post</a></h1>
+			</div>
+		</header>
 		{% block content %}
 		{% endblock content %}
 	</div>
-
 </body>
 </html>

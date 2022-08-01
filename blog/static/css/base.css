@@ -1,12 +1,9 @@
 
 
 header h1 a {
-	color: red;
-	text-decoration: none;
+color: red;
+text-decoration: none;
 }
-
-
-
 body {
 font-family: 'Source Sans Pro', sans-serif;
 font-size: 18px;
@@ -24,7 +21,7 @@ text-decoration: none;
 margin-right: auto;
 }
 .nav-right {
-display: flex;
+/*display: flex;*/
 padding-top: 2rem;
 }
 .post-entry {
