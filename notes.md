@@ -21,7 +21,7 @@
 
 ### Setting up project level static file for your project. [Docs](https://docs.djangoproject.com/en/3.2/ref/settings/#static-files)
 - CSS, JavaScript, and images are a core piece of any modern web application and within the Django world are referred to as “static files.”
-- By default, Django will look within each app for a folder called `static`. In other words, a folder called `app_name/static/`. If you recall, this is similar to how templates are treated as well.
+- By default, Django will look within each app for a folder called `static`. In other words, a folder called `app_name/static/`. If you recall, this is si- Before each new deployment, the collectstatic command must be run to compilemilar to how templates are treated as well.
 - As Django projects grow in complexity over time and have multiple apps, it is often simpler to reason about static files if they are stored in a single, project-level directory instead. 
 - Steps
 	1. create a new directory called *static* in the same folder as the *manage.py* file.
@@ -33,6 +33,12 @@
 - MEDIA_ROOT where media files ,all uploaded files goes. Example : Images, Files
 - https://stackoverflow.com/questions/24022558/differences-between-staticfiles-dir-static-root-and-media-root
 - Need more clarity on: STATIC_URL, STATIC_ROOT, MEDIA_ROOT, STATICFILES_DIRS, collectstatic, 
+- collectstatic: collectstatic command which compiles all static files throughout the project into a singe directory suitable for deployment. 
+- STATIC_ROOT: absolute location of these collected files, to a folder called staticfiles
+- STATICFILES_STORAGE: file storage engine used by collectstatic
+- Before each new deployment, the collectstatic command must be run to compile them into this staticfiles folder used in production.
+- While there are multiple ways to serve these compiled static files in production, the most common approach–and the one we will use here–is to introduce the **WhiteNoise** package.
+- **serving static files**: First, for local development, we created a top-level static folder and updated STATICFILES_DIRS to point to it. Then, we added configurations for STATIC_ROOT and STATICFILES_STORAGE before running collectstatic for the first time, which compiled all our static files across the entire project into a single *staticfiles* folder. Finally, we installed whitenoise, updated INSTALLED_APPS, MIDDLEWARE, and STATICFILES_STORAGE, and re-ran collectstatic.
 
 # Authentication
 - Whenever you create a new project, by default Django installs the auth app, which provides us with a User object107 containing: username, password, email, first_name, last_name. We use this `User` object to implement log in, log out, and sign up in our blog application
