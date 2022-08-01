@@ -45,3 +45,20 @@
 - by default Django will look within templates for a directory called *registration* for a file called login.html for a log in form.
 - the *accounts* app in blog project is dedicated to create a signup form. You dont need this if you just need login/logout
 - The order of our urls matters here because Django reads this file top-to-bottom. 
+
+
+# Custom user model
+-  if you do not create a custom user model, updating the default User model in an existing Django project is very, very challenging. So always use a custom user model for all new Django projects
+- The approach to create custom user model in the official documentation is complex. It uses the quite complex *AbstractBaseUser* when if we just use *AbstractUser* instead, things are far simpler and still customizable.
+### Steps in creating a custom user model for a new project
+- `mkdir news && cd news`
+- `django-admin startproject config .`
+- `python manage.py startapp accounts`
+- **DO NOT** run `migrate` until after you've created the new custom user model
+- Custom user model requires four steps
+	1. update config/settings.py: In config/settings.py we’ll add the accounts app to our INSTALLED_APPS. Then at the bottom of the file use the AUTH_USER_MODEL config to tell Django to use our new custom user model in place of the built-in User model. We’ll call our custom user model CustomUser so, since it exists within our accounts app we refer to it as accounts.CustomUser.
+	2. create a new CustomUser model: in accounts/models.py file by subclassing AbstractBaseUser, and adding the extra fields
+	3. create new forms for UserCreationForm and UserChangeForm
+	4. update accounts/admin.py
+- 
+
