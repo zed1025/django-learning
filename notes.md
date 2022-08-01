@@ -33,3 +33,9 @@
 - MEDIA_ROOT where media files ,all uploaded files goes. Example : Images, Files
 - https://stackoverflow.com/questions/24022558/differences-between-staticfiles-dir-static-root-and-media-root
 - Need more clarity on: STATIC_URL, STATIC_ROOT, MEDIA_ROOT, STATICFILES_DIRS, collectstatic, 
+
+# Authentication
+- Whenever you create a new project, by default Django installs the auth app, which provides us with a User object107 containing: username, password, email, first_name, last_name. We use this `User` object to implement log in, log out, and sign up in our blog application
+- by default Django will look within templates for a directory called *registration* for a file called login.html for a log in form.
+- the *accounts* app in blog project is dedicated to create a signup form. You dont need this if you just need login/logout
+- The order of our urls matters here because Django reads this file top-to-bottom. 
